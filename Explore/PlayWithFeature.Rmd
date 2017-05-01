@@ -1,0 +1,27 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+require(stringr)
+
+train_data <- data
+
+my_str_detect <- function(x, feature){
+  x = paste0( x, collapse = " ")
+  return (as.numeric(str_detect( tolower(x), feature)))
+}
+
+# spacious
+train_data$feature_spacious =  sapply(train_data$description, my_str_detect, 'spacious') 
+
+# renovated
+train_data$feature_renovated =  sapply(train_data$description, my_str_detect, "renovated") 
+
+# BRAND NEW
+train_data$feature_brand_new =  sapply(train_data$description, my_str_detect, 'brand new') 
+
+ggplot(train_data) + geom_point(aes(feature_spacious, listing_id , color = interest_level)) 
+```
+

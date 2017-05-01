@@ -1,0 +1,12 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+
+ggplot(data) + geom_point(aes(latitude, longitude , color = interest_level)) + 
+  scale_x_continuous(limits = c(40.5, 41.0)) +
+  scale_y_continuous(limits = c(-74.1, -73.75))
+```
+

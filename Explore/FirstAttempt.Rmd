@@ -1,0 +1,209 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+```{r}
+knitr::opts_chunk$set(echo = TRUE)
+my.install <- function(pkg) {
+ if (!(pkg %in% installed.packages()[,1])) {
+ install.packages(pkg)
+ }
+ return (require(pkg,character.only=TRUE))
+}
+
+my.install("jsonlite")
+my.install("dplyr")
+my.install("purrr")
+my.install("stringr")
+my.install("xgboost")
+my.install("lubridate")
+my.install("syuzhet")
+my.install("DT")
+my.install("RecordLinkage")
+
+# Train data
+train_data <- fromJSON("/Users/kshitijap/Desktop/R projects/DoIt/train.json")
+vars <- setdiff(names(train_data), c("photos", "features"))
+train_data <- map_at(train_data, vars, unlist) %>% tibble::as_tibble(.)
+
+# Test data
+test_data <- fromJSON("/Users/kshitijap/Desktop/R projects/DoIt/test.json")
+vars <- setdiff(names(test_data), c("photos", "features"))
+test_data <- map_at(test_data, vars, unlist) %>% tibble::as_tibble(.)
+
+#sentiment analysis
+sentiment <- get_nrc_sentiment(train_data$description)
+sent_df <- data_frame("negative" = sentiment$negative, "positive" = sentiment$positive)
+
+train_data$id<-seq(1:length(train_data$building_id)) #numerical ids!
+sent_df$id<-seq(1:nrow(sent_df))
+train_data<-merge(train_data,sent_df, by.x="id", by.y="id", all.x=T, all.y=T)
+train_data$id <- NULL
+
+my_str_detect <- function(x, feature){
+  x = paste0( x, collapse = " ")
+  return (as.numeric(str_detect( tolower(x), feature)))
+}
+
+# Hardwood
+train_data$feature_hardwood =  sapply(train_data$features, my_str_detect, 'wood') 
+
+# Laundry in unit
+train_data$feature_laundry =  sapply(train_data$features, my_str_detect, paste(c('laundry', 'dryer', 'washer'), collapse="|")) 
+
+# Roof deck
+train_data$feature_roofdeck =  sapply(train_data$features, my_str_detect, 'roof') 
+
+# Outdoor space
+train_data$feature_outdoor =  sapply(train_data$features, my_str_detect, 'outdoor') 
+
+# Garden
+train_data$feature_garden =  sapply(train_data$features, my_str_detect, 'garden') 
+
+# Park
+train_data$feature_parking =  sapply(train_data$features, my_str_detect, 'park') 
+
+# brand new
+train_data$desc_brandnew =  sapply(train_data$description, my_str_detect, 'brand new') 
+
+# spacious
+train_data$desc_spacious =  sapply(train_data$description, my_str_detect, 'spacious') 
+
+# renov
+train_data$desc_renov =  sapply(train_data$description, my_str_detect, 'renov')
+
+# flex
+train_data$desc_flex =  sapply(train_data$description, my_str_detect, 'flex')
+
+# studio
+train_data$desc_studio =  sapply(train_data$description, my_str_detect, 'studio')
+
+# doorman
+train_data$desc_doorman =  sapply(train_data$description, my_str_detect, 'doorman')
+
+# address similarity
+train_data$addr_dist = levenshteinSim(tolower(train_data$street_address),tolower(train_data$display_address))
+
+# convert date
+train_data$created<-ymd_hms(train_data$created)
+train_data$month<- month(train_data$created)
+train_data$year<- year(train_data$created)
+
+# num of photos
+train_data$num_photos = sapply(train_data$photos, length)
+
+# num of words in desc
+train_data$num_desc = sapply(train_data$description, length)
+
+# num of features
+train_data$num_features = sapply(train_data$features, length)
+
+#sentiment analysis
+sentiment <- get_nrc_sentiment(test_data$description)
+sent_df <- data_frame("negative" = sentiment$negative, "positive" = sentiment$positive)
+
+test_data$id<-seq(1:length(test_data$building_id)) #numerical ids!
+sent_df$id<-seq(1:nrow(sent_df))
+test_data<-merge(test_data,sent_df, by.x="id", by.y="id", all.x=T, all.y=T)
+test_data$id <- NULL
+
+# Hardwood
+test_data$feature_hardwood =  sapply(test_data$features, my_str_detect, 'wood') 
+
+# Laundry in unit
+test_data$feature_laundry =  sapply(test_data$features, my_str_detect, paste(c('laundry', 'dryer', 'washer'), collapse="|")) 
+
+# Roof deck
+test_data$feature_roofdeck =  sapply(test_data$features, my_str_detect, 'roof') 
+
+# Outdoor space
+test_data$feature_outdoor =  sapply(test_data$features, my_str_detect, 'outdoor') 
+
+# Garden
+test_data$feature_garden =  sapply(test_data$features, my_str_detect, 'garden') 
+
+# Park
+test_data$feature_parking =  sapply(test_data$features, my_str_detect, 'park') 
+
+# brand new
+test_data$desc_brandnew =  sapply(test_data$description, my_str_detect, 'brand new') 
+
+# spacious
+test_data$desc_spacious =  sapply(test_data$description, my_str_detect, 'spacious')
+
+# renov
+test_data$desc_renov =  sapply(test_data$description, my_str_detect, 'renov')
+
+# flex
+test_data$desc_flex =  sapply(test_data$description, my_str_detect, 'flex')
+
+# studio
+test_data$desc_studio =  sapply(test_data$description, my_str_detect, 'studio')
+
+# doorman
+test_data$desc_doorman =  sapply(test_data$description, my_str_detect, 'doorman')
+
+# address similarity
+test_data$addr_dist = levenshteinSim(tolower(test_data$street_address),tolower(test_data$display_address))
+
+# date created
+test_data$created<-ymd_hms(test_data$created)
+test_data$month<- month(test_data$created)
+test_data$year<- year(test_data$created)
+
+# num of photos
+test_data$num_photos = sapply(test_data$photos, length)
+
+# num of words in desc
+test_data$num_desc = sapply(test_data$description, length)
+
+# num of features
+test_data$num_features = sapply(test_data$features, length)
+
+names(test_data)
+
+word_features = c("building_id", "created", "description", "display_address", "street_address", "features", "listing_id", "manager_id", "photos")
+
+# Remove wordy features out of the dataset
+processed_train = train_data
+processed_train[word_features] = NULL
+
+processed_test = test_data
+processed_test[word_features] = NULL
+
+# Create processed X and processed Y
+train_X = processed_train
+train_X$interest_level = NULL
+train_y = processed_train$interest_level
+train_y[train_y == "low"] = 0
+train_y[train_y == "medium"] = 1
+train_y[train_y == "high"] = 2
+
+# Create processed X and processed Y
+test_X = processed_test
+
+set.seed(10000)
+pmt = proc.time()
+model = xgboost(data = as.matrix(train_X), 
+                label = train_y,
+                eta = 0.02,
+                max_depth = 5, 
+                nround=2500, 
+                subsample = 1,
+                colsample_bytree = 0.5,
+                seed = 10000,
+                eval_metric = "merror",
+                objective = "multi:softprob",
+                num_class = 3,
+                missing = NaN,
+                silent = 1)
+show(proc.time() - pmt)
+
+pred = predict(model,  as.matrix(test_X), missing=NaN)
+pred_matrix = matrix(pred, nrow = nrow(test_data), byrow = TRUE)
+pred_submission = cbind(test_data$listing_id, pred_matrix)
+colnames(pred_submission) = c("listing_id", "low", "medium", "high")
+pred_df = as.data.frame(pred_submission)
+write.csv(pred_df, "/Users/kshitijap/Desktop/R projects/DoIt/submission.csv", row.names = FALSE)
+```
+
